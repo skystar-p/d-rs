@@ -1,5 +1,6 @@
 const DIC_URL: &str = "https://dic.daum.net/search.do";
 
+mod db;
 mod parse;
 
 #[tokio::main]
@@ -21,6 +22,8 @@ async fn main() -> anyhow::Result<()> {
     let meanings = parse::parse_meaning(&raw_html)?;
 
     println!("{}", meanings.join(" / "));
+
+    db::save_history(&word)?;
 
     Ok(())
 }
