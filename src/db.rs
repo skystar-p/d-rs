@@ -47,3 +47,12 @@ pub fn save_history(word: &str) -> anyhow::Result<()> {
 
     Ok(())
 }
+
+pub fn remove_history(word: &str) -> anyhow::Result<()> {
+    let history_tree = DB.open_tree("history")?;
+    history_tree.remove(word.as_bytes())?;
+
+    DB.flush()?;
+
+    Ok(())
+}

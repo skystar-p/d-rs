@@ -28,12 +28,19 @@ async fn main() -> anyhow::Result<()> {
         unimplemented!("review feature is not implemented yet");
     }
 
-    if args.forget {
-        unimplemented!("forget feature is not implemented yet");
-    }
-
     let word = args.words.join(" ");
 
+    if args.forget {
+        forget_word(&word)?;
+        return Ok(());
+    }
+
+    search_word(&word).await?;
+
+    Ok(())
+}
+
+async fn search_word(word: &str) -> anyhow::Result<()> {
     let raw_html = reqwest::get(format!("{}?q={}", DIC_URL, word))
         .await?
         .text()
@@ -45,5 +52,11 @@ async fn main() -> anyhow::Result<()> {
 
     db::save_history(&word)?;
 
+    Ok(())
+}
+
+fn forget_word(word: &str) -> anyhow::Result<()> {
+    db::remove_history(word)?;
+    println!("word \"{}\" is removed from history", word);
     Ok(())
 }
