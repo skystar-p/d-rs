@@ -16,7 +16,7 @@ struct Args {
     forget: bool,
 
     /// review the history
-    #[clap(long, conflicts_with = "forget")]
+    #[clap(long, conflicts_with = "forget", conflicts_with = "words")]
     review: bool,
 }
 
@@ -25,7 +25,11 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     if args.review {
-        unimplemented!("review feature is not implemented yet");
+        let reviews = db::list_reviews()?;
+        for review in reviews {
+            println!("{}", review.word);
+        }
+        return Ok(());
     }
 
     let word = args.words.join(" ");
@@ -50,7 +54,7 @@ async fn search_word(word: &str) -> anyhow::Result<()> {
 
     println!("{}", meanings.join(" / "));
 
-    db::save_history(&word)?;
+    db::save_history(&word, false)?;
 
     Ok(())
 }

@@ -19,27 +19,32 @@ pub static DB: Lazy<sled::Db> = Lazy::new(|| {
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct History {
     pub word: String,
-    pub last_searched: u64,
-    pub last_reviewed: Option<u64>,
-    pub searched_count: u64,
+    pub first_searched: i64,
+    pub last_reviewed: Option<i64>,
+    pub searched_count: i64,
 }
 
-pub fn save_history(word: &str) -> anyhow::Result<()> {
+pub fn save_history(word: &str, review: bool) -> anyhow::Result<()> {
     let history_tree = DB.open_tree("history")?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_secs() as i64;
+
     history_tree.update_and_fetch(word.as_bytes(), |old| {
         let mut history = if let Some(old) = old {
             serde_json::from_slice(old).unwrap_or_default()
         } else {
             History {
                 word: word.to_string(),
+                first_searched: now,
                 ..Default::default()
             }
         };
-        history.last_searched = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        history.searched_count += 1;
+        if review {
+            history.last_reviewed = Some(now);
+        } else {
+            history.searched_count += 1;
+        }
         serde_json::to_vec(&history).ok()
     })?;
 
@@ -55,4 +60,39 @@ pub fn remove_history(word: &str) -> anyhow::Result<()> {
     DB.flush()?;
 
     Ok(())
+}
+
+static REVIEW_PERIOD: Lazy<Vec<i64>> = Lazy::new(|| {
+    vec![1, 3, 7, 14, 30, 60, 90, 180, 365]
+        .into_iter()
+        .map(|x| x * 60 * 60 * 24)
+        .collect::<Vec<_>>()
+});
+
+pub fn list_reviews() -> anyhow::Result<Vec<History>> {
+    let history_tree = DB.open_tree("history")?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_secs() as i64;
+    let l: Vec<History> = history_tree
+        .iter()
+        .filter_map(|kv| kv.ok())
+        .filter_map(|kv| serde_json::from_slice::<History>(&kv.1).ok())
+        .filter_map(|h| {
+            let elapsed_first_searched = now - h.first_searched;
+            let elapsed_review = h.last_reviewed.unwrap_or(h.first_searched) - h.first_searched;
+            REVIEW_PERIOD
+                .iter()
+                .find(|&&d| elapsed_first_searched > d && elapsed_review < d)
+                .map(|_| h)
+        })
+        .collect();
+
+    for history in &l {
+        save_history(&history.word, true)?;
+    }
+
+    DB.flush()?;
+
+    Ok(l)
 }
