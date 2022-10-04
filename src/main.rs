@@ -16,7 +16,7 @@ struct Args {
     forget: bool,
 
     /// review the history
-    #[clap(long)]
+    #[clap(long, conflicts_with = "forget")]
     review: bool,
 }
 
