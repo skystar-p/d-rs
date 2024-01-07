@@ -13,7 +13,7 @@
       system:
       let pkgs = import nixpkgs { inherit system; };
       in {
-        defaultPackage = (import ./Cargo.nix { inherit pkgs; }).rootCrate.build;
+        defaultPackage = (pkgs.callPackage ./. { });
       }
     );
 }
