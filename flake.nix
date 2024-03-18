@@ -2,15 +2,12 @@
   description = "d-rs flake";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
   outputs = { nixpkgs, flake-utils, ... }:
-    let systems = [ "x86_64-linux" "aarch64-linux" ];
-    in
-    flake-utils.lib.eachSystem systems (
-      system:
+    flake-utils.lib.eachDefaultSystem (system:
       let pkgs = import nixpkgs { inherit system; };
       in {
         packages.default = (pkgs.callPackage ./. { });
